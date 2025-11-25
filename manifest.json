@@ -1,7 +1,7 @@
 {
 	"name": "补仓计算器",
 	"short_name": "补仓计算",
-	"description": "输入建仓价格与数量、补仓价与目标均价，计算需要补买的股数并保存历史。",
+	"description": "输入建仓价格与数量、补仓价与目标均价，计算需要补买的股数，并显示“再花多少钱”（补仓花费），支持保存与管理历史记录。",
 	"lang": "zh-CN",
 	"start_url": "./index.html",
 	"scope": "./",
@@ -24,4 +24,6 @@
 	"categories": ["finance", "tools"],
 	"prefer_related_applications": false
 }
+
+
 
