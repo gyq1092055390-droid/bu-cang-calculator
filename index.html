@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>补仓计算器</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
+  <!-- iPhone 添加到主屏幕相关 -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="补仓计算器" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+
+  <!-- PWA manifest（给安卓和支持 PWA 的浏览器用） -->
+  <link rel="manifest" href="manifest.json" />
+
+  <style>
+    :root {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text",
+        system-ui, -system-ui, "Segoe UI", sans-serif;
+      color-scheme: light dark;
+      color: #111; /* 默认文本颜色，避免在某些移动浏览器上文字变成白色看不见 */
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: #f5f5f7;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: stretch;
+    }
+
+    .app {
+      box-sizing: border-box;
+      width: 100%;
+      max-width: 520px;
+      padding: 16px 16px 32px;
+    }
+
+    .card {
+      background: #ffffff;
+      border-radius: 18px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+      padding: 18px 16px 20px;
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      margin: 0 0 4px;
+    }
+
+    .subtitle {
+      font-size: 0.85rem;
+      color: #666;
+      margin-bottom: 12px;
+    }
+
+    .field {
+      margin-bottom: 12px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      margin-bottom: 4px;
+    }
+
+    input[type="number"] {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid #ccc;
+      font-size: 0.95rem;
+      outline: none;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    input[type="number"]:focus {
+      border-color: #007aff;
+      box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.15);
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .row .field {
+      flex: 1;
+      margin-bottom: 0;
+    }
+
+    button {
+      margin-top: 8px;
+      width: 100%;
+      border: none;
+      border-radius: 12px;
+      padding: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      background: #007aff;
+      color: #fff;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button:active {
+      opacity: 0.8;
+      transform: scale(0.99);
+    }
+
+    .result-card {
+      margin-top: 16px;
+      padding: 12px 12px 10px;
+      border-radius: 14px;
+      background: #f2f4ff;
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+
+    .result-main {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .result-secondary {
+      color: #555;
+    }
+
+    .error {
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: #ffecec;
+      color: #b00020;
+      font-size: 0.85rem;
+    }
+
+    .tip {
+      font-size: 0.8rem;
+      color: #777;
+      margin-top: 6px;
+    }
+
+    /* 暗色模式优化：确保背景/文字在深色主题下仍然可见 */
+    @media (prefers-color-scheme: dark) {
+      body { background: #0b0b0d; color: #e6e6e6; }
+      .card { background: #0f1113; box-shadow: 0 6px 18px rgba(0,0,0,0.6); }
+      .subtitle, .tip, .result-secondary { color: #cfcfcf; }
+      input[type="number"], input[type="text"] {
+        background: #0b0b0d; border-color: #2c2c2c; color: #e6e6e6;
+      }
+      .result-card { background: #0b1220; color: #e6e6e6; }
+      .error { background: #3b0a0a; color: #ffd2d2; }
+      button { background: #0a84ff; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="card">
+      <h1>补仓计算器</h1>
+      <div class="subtitle">
+        输入你第一次建仓的价格和数量、计划补仓的价格，以及你想回本的目标价，
+        计算需要再买多少股才能通过补仓把成本摊到目标价。
+      </div>
+
+      <div class="field">
+        <label for="stock">股票名称（可选）</label>
+        <input id="stock" type="text" placeholder="例如：腾讯 / 0700.HK / 600519" />
+      </div>
+
+      <div class="field">
+        <label for="p0">第一次买入价格 P₀（元）</label>
+        <input id="p0" type="number" step="0.0001" inputmode="decimal" placeholder="第一次买入价格 例如 20.5">
+      </div>
+
+      <div class="field">
+          <label for="q0">第一次买入数量 Q₀（股，可输入小数）</label>
+          <input id="q0" type="number" step="any" inputmode="decimal" placeholder="例如 100 或 100.5">
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label for="p1">补仓价格 P₁（元）</label>
+          <input id="p1" type="number" step="0.0001" inputmode="decimal" placeholder="补仓价格 例如 15.8">
+        </div>
+        <div class="field">
+          <label for="pt">目标均价 Pₜ（元）</label>
+          <input id="pt" type="number" step="0.0001" inputmode="decimal" placeholder="目标均价 例如 当前股价">
+        </div>
+      </div>
+
+      <button id="calc-btn">计算需要再买多少股</button>
+
+      <div id="result" class="result-card" style="display:none;">
+        <div class="result-main" id="result-main"></div>
+        <div class="result-secondary" id="result-detail"></div>
+        <div class="tip">提示：结果只是数学计算，不构成投资建议，请结合仓位和风险自己判断。</div>
+      </div>
+
+      <div id="error" class="error" style="display:none;"></div>
+
+      <div class="tip">
+        公式：设再买 N 股，则平均成本为<br>
+        <code>(P₀·Q₀ + P₁·N) / (Q₀ + N) = Pₜ</code>，解得<br>
+        <code>N = Q₀ (P₀ - Pₜ) / (Pₜ - P₁)</code>
+      </div>
+
+      <div id="history-wrap" style="margin-top:14px">
+        <h3 style="margin:8px 0">历史记录</h3>
+        <div id="history" class="result-card" style="max-height:260px;overflow:auto;display:block;padding:8px">
+          <div id="history-empty" style="color:#666">暂无历史记录</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function parseNumber(id) {
+      const v = document.getElementById(id).value.trim();
+      return v === '' ? NaN : Number(v);
+    }
+
+    document.getElementById('calc-btn').addEventListener('click', function () {
+      const p0 = parseNumber('p0');
+      const q0 = parseNumber('q0');
+      const p1 = parseNumber('p1');
+      const pt = parseNumber('pt');
+
+      const errorBox = document.getElementById('error');
+      const resultBox = document.getElementById('result');
+      const resultMain = document.getElementById('result-main');
+      const resultDetail = document.getElementById('result-detail');
+
+      errorBox.style.display = 'none';
+      resultBox.style.display = 'none';
+
+      if ([p0, q0, p1, pt].some(v => isNaN(v))) {
+        errorBox.textContent = '请把所有输入都填完整，并且是数字。';
+        errorBox.style.display = 'block';
+        return;
+      }
+
+      if (q0 <= 0) {
+        errorBox.textContent = '第一次买入数量 Q₀ 必须大于 0。';
+        errorBox.style.display = 'block';
+        return;
+      }
+
+      const denom = pt - p1;
+      if (denom === 0) {
+        errorBox.textContent = '目标价 Pₜ 恰好等于补仓价 P₁，理论上需要无穷多次补仓，公式在这里失效，请调整目标价。';
+        errorBox.style.display = 'block';
+        return;
+      }
+
+      const N = q0 * (p0 - pt) / denom;
+
+      if (N < 0) {
+        errorBox.textContent = '按照当前目标价和补仓价的组合，不需要再买，或者目标价设置不合理（计算得到的 N < 0）。';
+        errorBox.style.display = 'block';
+        return;
+      }
+
+      const totalShares = q0 + N;
+      const finalAvg = (p0 * q0 + p1 * N) / totalShares;
+
+      resultMain.textContent = `你大约需要再买 ${N.toFixed(2)} 股。`;
+      resultDetail.textContent =
+        `补仓后总持仓约为 ${totalShares.toFixed(2)} 股，` +
+        `理论平均成本 ≈ ${finalAvg.toFixed(4)} 元/股。`;
+
+      resultBox.style.display = 'block';
+
+      // prepare result text and save to history
+      const stockName = (document.getElementById('stock').value || '').trim();
+      const resultText = `你大约需要再买 ${N.toFixed(2)} 股。\n补仓后总持仓约为 ${totalShares.toFixed(2)} 股，理论平均成本 ≈ ${finalAvg.toFixed(4)} 元/股。`;
+
+      const entry = {
+        id: Date.now(),
+        stock: stockName,
+        p0: p0,
+        q0: q0,
+        p1: p1,
+        pt: pt,
+        N: Number(N.toFixed(4)),
+        totalShares: Number(totalShares.toFixed(4)),
+        finalAvg: Number(finalAvg.toFixed(6)),
+        text: resultText,
+        ts: new Date().toISOString()
+      };
+      addHistoryEntry(entry);
+    });
+
+    // --------- history functions (localStorage) ----------
+    function getHistory() {
+      try { return JSON.parse(localStorage.getItem('calc_history') || '[]'); }
+      catch (e) { return []; }
+    }
+    function saveHistory(arr) { localStorage.setItem('calc_history', JSON.stringify(arr)); renderHistory(); }
+    function addHistoryEntry(entry) { const h = getHistory(); h.unshift(entry); saveHistory(h); }
+    function deleteHistoryEntry(id) { const h = getHistory().filter(x => x.id !== id); saveHistory(h); }
+    function editHistoryName(id, name) { const h = getHistory(); const idx = h.findIndex(x=>x.id===id); if (idx>-1) { h[idx].stock = name; saveHistory(h); } }
+    function loadHistoryEntry(id) {
+      const e = getHistory().find(x=>x.id===id); if (!e) return;
+      document.getElementById('stock').value = e.stock || '';
+      document.getElementById('p0').value = e.p0;
+      document.getElementById('q0').value = e.q0;
+      document.getElementById('p1').value = e.p1;
+      document.getElementById('pt').value = e.pt;
+      document.getElementById('result').style.display = 'block';
+      document.getElementById('result-main').textContent = e.text.split('\n')[0] || '';
+      document.getElementById('result-detail').textContent = e.text.split('\n').slice(1).join(' ');
+    }
+    function renderHistory() {
+      const box = document.getElementById('history'); const arr = getHistory(); box.innerHTML = '';
+      if (!arr.length) { box.innerHTML = '<div id="history-empty" style="color:#666">暂无历史记录</div>'; return; }
+      arr.forEach(e => {
+        const item = document.createElement('div'); item.style.padding='8px'; item.style.borderBottom='1px solid #eee';
+        const title = document.createElement('div'); title.style.display='flex'; title.style.justifyContent='space-between';
+        const left = document.createElement('div'); left.style.fontWeight='600'; left.textContent = e.stock || '未命名';
+        const right = document.createElement('div'); right.style.fontSize='12px'; right.style.color='#666'; right.textContent = (new Date(e.ts)).toLocaleString();
+        title.appendChild(left); title.appendChild(right);
+        const body = document.createElement('div'); body.style.marginTop='6px'; body.style.whiteSpace='pre-wrap'; body.innerHTML = e.text.replace(/\n/g,'<br>');
+        const actions = document.createElement('div'); actions.style.marginTop='8px';
+        const loadBtn = document.createElement('button'); loadBtn.textContent='加载'; loadBtn.style.marginRight='8px'; loadBtn.addEventListener('click',()=>loadHistoryEntry(e.id));
+        const editBtn = document.createElement('button'); editBtn.textContent='编辑名称'; editBtn.style.marginRight='8px'; editBtn.addEventListener('click',()=>{ const name=prompt('新名称：', e.stock||''); if (name!==null) editHistoryName(e.id, name.trim()); });
+        const delBtn = document.createElement('button'); delBtn.textContent='删除'; delBtn.style.color='#c00'; delBtn.addEventListener('click',()=>{ if (confirm('确认删除？')) deleteHistoryEntry(e.id); });
+        actions.appendChild(loadBtn); actions.appendChild(editBtn); actions.appendChild(delBtn);
+        item.appendChild(title); item.appendChild(body); item.appendChild(actions);
+        box.appendChild(item);
+      });
+    }
+    document.addEventListener('DOMContentLoaded', () => renderHistory());
+  </script>
+</body>
+</html>
